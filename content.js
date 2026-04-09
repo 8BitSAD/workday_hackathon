@@ -1,5 +1,5 @@
 // content.js
-// One Thing Mode - Injects into every page
+// Scope - Injects into every page
 // Handles DOM manipulation, button detection, overlay UI, and storage
 
 // STATE MANAGEMENT
@@ -494,7 +494,7 @@ async function activateMode() {
   
   // Create exit button
   currentExitButton = document.createElement('button');
-  currentExitButton.textContent = 'Exit One Thing Mode (Ctrl+Shift+X / ⌘+Shift+X)';
+  currentExitButton.textContent = 'Exit Scope (Ctrl+Shift+X / ⌘+Shift+X)';
   currentExitButton.style.cssText = `
     position: fixed;
     bottom: 20px;
@@ -526,7 +526,7 @@ async function activateMode() {
   // Notify background script
   chrome.runtime.sendMessage({ type: "modeActivated" }).catch(e => console.log("Background not ready"));
   
-  showToast(`One Thing Mode active. Showing top ${currentButtonClones.length} actions.`);
+  showToast(`Scope active. Showing top ${currentButtonClones.length} actions.`);
   
   return { success: true };
 }
@@ -556,7 +556,7 @@ function deactivateMode() {
   // Notify background script
   chrome.runtime.sendMessage({ type: "modeDeactivated" }).catch(e => console.log("Background not ready"));
   
-  showToast("One Thing Mode exited.");
+  showToast("Scope exited.");
   
   return { success: true };
 }
@@ -620,4 +620,4 @@ window.addEventListener('popstate', () => {
   if (isActive) deactivateMode();
 });
 
-console.log("One Thing Mode content script loaded for domain:", currentDomain);
+console.log("Scope content script loaded for domain:", currentDomain);
