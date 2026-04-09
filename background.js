@@ -1,8 +1,8 @@
 // background.js
-// Service worker for One Thing Mode extension
+// Service worker for Scope extension
 // Handles toolbar icon clicks, keyboard shortcuts, and context menu
 
-// Track which tab has One Thing Mode active
+// Track which tab has Scope active
 // This is a Map: tabId -> boolean (true = active)
 // We use this to enable toggle behavior
 let activeTabs = new Map();
@@ -16,7 +16,7 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["page"]
   });
   
-  console.log("One Thing Mode extension installed. Context menu created.");
+  console.log("Scope extension installed. Context menu created.");
 });
 
 // Listen for toolbar icon clicks
@@ -101,7 +101,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 async function handleActivation(tab) {
   // Check if this is a Chrome internal page or other restricted URL
   if (!isValidUrl(tab.url)) {
-    showPopupMessage("One Thing Mode only works on regular webpages", tab.id);
+    showPopupMessage("Scope only works on regular webpages", tab.id);
     return;
   }
   
@@ -117,7 +117,7 @@ async function handleActivation(tab) {
   }
 }
 
-// Activate One Thing Mode on a specific tab
+// Activate Scope on a specific tab
 async function activateMode(tabId) {
   try {
     // First, ensure content script is ready by sending a ping
@@ -137,21 +137,21 @@ async function activateMode(tabId) {
     
     if (response && response.success) {
       // activeTabs will be updated by content script's modeActivated message
-      console.log("Successfully activated One Thing Mode in tab:", tabId);
+      console.log("Successfully activated Scope in tab:", tabId);
     } else if (response && response.error === "no_primary_action") {
       // Content script couldn't find a primary action
       showPopupMessage("Could not identify a primary action on this page. Try using the 'Teach me' feature.", tabId);
     } else {
       console.error("Activation failed:", response);
-      showPopupMessage("Failed to activate One Thing Mode. Please refresh the page and try again.", tabId);
+      showPopupMessage("Failed to activate Scope. Please refresh the page and try again.", tabId);
     }
   } catch (error) {
     console.error("Error activating mode:", error);
-    showPopupMessage("Error activating One Thing Mode. Check console for details.", tabId);
+    showPopupMessage("Error activating Scope. Check console for details.", tabId);
   }
 }
 
-// Deactivate One Thing Mode on a specific tab
+// Deactivate Scope on a specific tab
 async function deactivateMode(tabId) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
@@ -161,7 +161,7 @@ async function deactivateMode(tabId) {
     
     if (response && response.success) {
       // activeTabs will be updated by content script's modeDeactivated message
-      console.log("Successfully deactivated One Thing Mode in tab:", tabId);
+      console.log("Successfully deactivated Scope in tab:", tabId);
     } else {
       console.error("Deactivation failed:", response);
       // Even if message fails, clean up our local state
