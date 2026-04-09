@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "One Thing Mode",
+  "version": "0.1.0",
+  "description": "Reduces webpages to a single primary action — designed for people with ADHD, brain fog, and executive dysfunction",
+  
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "commands": {
+    "activate-one-thing": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Activate One Thing Mode on current page"
+    },
+    "exit-one-thing": {
+      "suggested_key": {
+        "default": "Escape",
+        "mac": "Escape"
+      },
+      "description": "Exit One Thing Mode"
+    }
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "One Thing Mode",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
