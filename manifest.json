@@ -6,7 +6,8 @@
   
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "scripting"
   ],
   
   "host_permissions": [
@@ -36,8 +37,8 @@
     },
     "exit-one-thing": {
       "suggested_key": {
-        "default": "Escape",
-        "mac": "Escape"
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
       },
       "description": "Exit One Thing Mode"
     }
@@ -45,8 +46,8 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "One Thing Mode",
-    "default_icon": {
+    "default_title": "One Thing Mode"
+    /*"default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
       "48": "icons/icon48.png",
@@ -59,5 +60,6 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  }*/
   }
 }
