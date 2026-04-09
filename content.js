@@ -399,7 +399,7 @@ async function findPrimaryButton() {
   }
   
   // Step 2: Run heuristic scoring
-  const candidates = getTopCandidates(3);
+  const candidates = getTopCandidates(5);
   if (candidates.length > 0 && candidates[0].score > 0) {
     console.log("Heuristic found button with score:", candidates[0].score);
     return candidates[0].element;
@@ -417,7 +417,7 @@ async function activateMode() {
     return { success: true };
   }
 
-  const candidates = getTopCandidates(4);
+  const candidates = getTopCandidates(5);
   if (candidates.length === 0) {
     console.log("No candidate buttons found");
     return { error: "no_primary_action" };
