@@ -2,7 +2,9 @@
 // One Thing Mode - Injects into every page
 // Handles DOM manipulation, button detection, overlay UI, and storage
 
+// ============================================================================
 // STATE MANAGEMENT
+// ============================================================================
 
 let isActive = false;
 let originalPageClone = null;
@@ -14,7 +16,9 @@ let currentPrimarySelector = null;
 let activeToast = null;
 let observer = null; // MutationObserver for SPA navigation
 
+// ============================================================================
 // UTILITY FUNCTIONS
+// ============================================================================
 
 function showToast(message, duration = 3000) {
   // Remove existing toast if present
@@ -92,61 +96,172 @@ function getDomainFromUrl(url) {
   }
 }
 
+// ============================================================================
 // BUTTON DETECTION & SCORING
+// ============================================================================
 
 function getClickableElements() {
-  return Array.from(document.querySelectorAll(
-    'button, a, [role="button"], input[type="submit"], input[type="button"], .btn, [onclick]'
-  ));
+  const selector = [
+    'button',
+    'a[href]',
+    '[role="button"]',
+    'input[type="submit"]',
+    'input[type="button"]',
+    'input[type="image"]',
+    '[onclick]',
+    '[data-action]',
+    '[aria-label]',
+    '[id*="checkout" i]',
+    '[class*="checkout" i]',
+    '[name*="checkout" i]',
+    '[id*="buy" i]',
+    '[class*="buy" i]',
+    '[name*="buy" i]',
+    '.a-button',
+    '.a-button-primary'
+  ].join(', ');
+
+  const seen = new Set();
+  const result = [];
+
+  for (const element of document.querySelectorAll(selector)) {
+    if (seen.has(element)) continue;
+    seen.add(element);
+
+    if (!isElementInteractable(element)) continue;
+    result.push(element);
+  }
+
+  return result;
+}
+
+function isElementInteractable(element) {
+  if (!element || !element.isConnected) return false;
+  if (element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true') return false;
+
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width < 16 || rect.height < 16) return false;
+
+  return true;
+}
+
+function buildElementSignals(element) {
+  const textParts = [
+    element.innerText,
+    element.textContent,
+    element.value,
+    element.getAttribute('aria-label'),
+    element.getAttribute('title'),
+    element.getAttribute('alt')
+  ].filter(Boolean);
+
+  const attrParts = [
+    element.id,
+    element.className,
+    element.getAttribute('name'),
+    element.getAttribute('data-action'),
+    element.getAttribute('data-testid'),
+    element.getAttribute('href')
+  ].filter(Boolean);
+
+  const form = element.closest('form');
+  if (form) {
+    attrParts.push(form.getAttribute('action') || '');
+    attrParts.push(form.getAttribute('id') || '');
+    attrParts.push(form.getAttribute('name') || '');
+  }
+
+  return {
+    text: textParts.join(' ').replace(/\s+/g, ' ').trim().toLowerCase(),
+    attrs: attrParts.join(' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  };
 }
 
 function calculateScore(element) {
+  if (!isElementInteractable(element)) return Number.NEGATIVE_INFINITY;
+
   let score = 0;
-  const text = (element.innerText || element.value || '').toLowerCase();
-  const ariaLabel = element.getAttribute('aria-label') || '';
-  const combined = text + ' ' + ariaLabel;
-  
-  // Primary action keywords (weight: +10)
+  const { text, attrs } = buildElementSignals(element);
+  const combined = `${text} ${attrs}`;
+
+  // Strong intent words should dominate generic navigation/search actions.
+  const highIntentActions = [
+    'proceed to checkout',
+    'continue to checkout',
+    'checkout',
+    'place your order',
+    'place order',
+    'buy now',
+    'complete purchase',
+    'pay now',
+    'order now'
+  ];
+
+  for (const phrase of highIntentActions) {
+    if (combined.includes(phrase)) score += 40;
+  }
+
   const primaryActions = [
-    'buy', 'pay', 'submit', 'save', 'continue', 'next', 'send', 
-    'checkout', 'confirm', 'place order', 'book', 'reserve', 
-    'purchase', 'order', 'proceed', 'login', 'sign in', 'signin',
-    'register', 'create account', 'start', 'begin', 'go', 'search'
+    'buy', 'pay', 'submit', 'save', 'continue', 'next', 'send',
+    'confirm', 'book', 'reserve', 'purchase', 'order', 'proceed',
+    'login', 'sign in', 'signin', 'register', 'create account', 'start', 'begin'
   ];
-  
-  for (let word of primaryActions) {
-    if (combined.includes(word)) {
-      score += 10;
-      // Bonus if exact match (not just substring)
-      if (combined === word) score += 5;
-    }
+
+  for (const word of primaryActions) {
+    if (combined.includes(word)) score += 12;
   }
-  
-  // Negative indicators (definitely NOT primary: -20)
+
+  // Generic actions often create false positives on ecommerce pages.
+  const weakActions = ['search', 'go', 'filter', 'sort'];
+  for (const word of weakActions) {
+    if (combined.includes(word)) score += 2;
+  }
+
   const negativeActions = [
-    'cancel', 'delete', 'remove', 'clear', 'reset', 
-    'back', 'previous', 'close', 'dismiss', 'decline'
+    'cancel', 'delete', 'remove', 'clear', 'reset',
+    'back', 'previous', 'close', 'dismiss', 'decline',
+    'sign out', 'logout', 'learn more'
   ];
-  
-  for (let word of negativeActions) {
-    if (combined.includes(word)) score -= 20;
+
+  for (const word of negativeActions) {
+    if (combined.includes(word)) score -= 25;
   }
-  
-  // Visual prominence signals
+
+  // Amazon/common checkout patterns in id, class, name, and form metadata.
+  const checkoutSignals = [
+    'checkout',
+    'proceedtoretailcheckout',
+    'buy-box',
+    'placeorder',
+    'submitorder',
+    'a-button-primary'
+  ];
+  for (const signal of checkoutSignals) {
+    if (attrs.includes(signal)) score += 28;
+  }
+
+  const href = (element.getAttribute('href') || '').toLowerCase();
+  if (href.includes('checkout') || href.includes('buy') || href.includes('payment')) {
+    score += 20;
+  }
+
   const rect = element.getBoundingClientRect();
-  if (rect.width > 100) score += 2;
-  if (rect.height > 30) score += 1;
-  
-  // Check for primary button classes/attributes
+  if (rect.width > 90) score += 4;
+  if (rect.height > 30) score += 3;
+  if (rect.width > 150) score += 3;
+
   if (element.classList.contains('primary')) score += 15;
   if (element.classList.contains('btn-primary')) score += 15;
   if (element.classList.contains('button-primary')) score += 15;
   if (element.getAttribute('data-primary') === 'true') score += 15;
-  
-  // Check for common submit button indicators
-  if (element.type === 'submit') score += 10;
-  if (element.getAttribute('aria-label')?.toLowerCase().includes('submit')) score += 10;
-  
+
+  if (element.tagName.toLowerCase() === 'button') score += 4;
+  if (element.type === 'submit') score += 12;
+  if ((element.getAttribute('aria-label') || '').toLowerCase().includes('submit')) score += 8;
+
   return score;
 }
 
@@ -188,7 +303,9 @@ function generateSelector(element) {
   return element.tagName.toLowerCase();
 }
 
+// ============================================================================
 // STORAGE (Domain-level mappings)
+// ============================================================================
 
 async function loadSavedSelector(domain) {
   return new Promise((resolve) => {
@@ -217,7 +334,9 @@ async function saveSelector(domain, selector) {
   });
 }
 
+// ============================================================================
 // FIND PRIMARY BUTTON (Saved selector + fallback)
+// ============================================================================
 
 async function findPrimaryButton() {
   // Step 1: Check saved mapping for this domain
@@ -243,7 +362,9 @@ async function findPrimaryButton() {
   return null;
 }
 
+// ============================================================================
 // TEACH ME UI (Show top 5 candidates for user to select)
+// ============================================================================
 
 function showTeachMeUI() {
   const candidates = getTopCandidates(5);
@@ -342,7 +463,9 @@ function showTeachMeUI() {
   };
 }
 
+// ============================================================================
 // ACTIVATE MODE (Highlight in place, 25% bigger, centered in same location)
+// ============================================================================
 
 async function activateMode() {
   if (isActive) {
@@ -363,8 +486,6 @@ async function activateMode() {
   
   // Get original position of the button
   const originalRect = primaryButton.getBoundingClientRect();
-  const scrollX = window.scrollX;
-  const scrollY = window.scrollY;
   
   // Create overlay that hides everything except the target area
   currentOverlay = document.createElement('div');
@@ -389,12 +510,17 @@ async function activateMode() {
   const newWidth = originalWidth * 1.25;
   const newHeight = originalHeight * 1.25;
   
-  // Calculate centered position (same location, but centered because button is larger)
-  const leftPos = originalRect.left + scrollX - (newWidth - originalWidth) / 2;
-  const topPos = originalRect.top + scrollY - (newHeight - originalHeight) / 2;
+  // Use viewport coordinates so the clone stays aligned with the fixed overlay.
+  // Clamp to viewport bounds so it is always visible.
+  const unclampedLeft = originalRect.left - (newWidth - originalWidth) / 2;
+  const unclampedTop = originalRect.top - (newHeight - originalHeight) / 2;
+  const maxLeft = Math.max(8, window.innerWidth - newWidth - 8);
+  const maxTop = Math.max(8, window.innerHeight - newHeight - 8);
+  const leftPos = Math.min(Math.max(8, unclampedLeft), maxLeft);
+  const topPos = Math.min(Math.max(8, unclampedTop), maxTop);
   
   currentButtonClone.style.cssText = `
-    position: absolute;
+    position: fixed;
     left: ${leftPos}px;
     top: ${topPos}px;
     width: ${newWidth}px;
@@ -465,7 +591,9 @@ async function activateMode() {
   return { success: true };
 }
 
+// ============================================================================
 // DEACTIVATE MODE
+// ============================================================================
 
 function deactivateMode() {
   if (!isActive) {
@@ -491,7 +619,9 @@ function deactivateMode() {
   return { success: true };
 }
 
+// ============================================================================
 // MESSAGE HANDLERS (for background.js communication)
+// ============================================================================
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Content script received message:", message);
@@ -527,7 +657,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+// ============================================================================
 // SPA NAVIGATION HANDLER (Detect URL changes)
+// ============================================================================
 
 let lastUrl = location.href;
 
