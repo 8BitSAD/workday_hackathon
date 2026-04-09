@@ -8,6 +8,7 @@ let isActive = false;
 let originalPageClone = null;
 let currentOverlay = null;
 let currentButtonClone = null;
+let currentButtonClones = [];
 let currentExitButton = null;
 let currentDomain = window.location.hostname;
 let currentPrimarySelector = null;
@@ -104,6 +105,7 @@ function getClickableElements() {
     'input[type="image"]',
     '[onclick]',
     '[data-action]',
+    '[data-testid]',
     '[aria-label]',
     '[id*="checkout" i]',
     '[class*="checkout" i]',
@@ -191,25 +193,45 @@ function calculateScore(element) {
     'buy now',
     'complete purchase',
     'pay now',
-    'order now'
+    'order now',
+    'view deal',
+    'go to cart',
+    'proceed to payment',
+    'continue to payment',
+    'buy it now',
+    'place bid',
+    'confirm bid',
+    'book now',
+    'reserve now',
+    'check available',
+    'reserve this',
+    'Help',
+    'Support',
+    'Contact Us',
+    'Customer Service',
+    'Get Help'
   ];
 
   for (const phrase of highIntentActions) {
-    if (combined.includes(phrase)) score += 40;
+    if (combined.includes(phrase)) score += 50;
   }
 
   const primaryActions = [
     'buy', 'pay', 'submit', 'save', 'continue', 'next', 'send',
     'confirm', 'book', 'reserve', 'purchase', 'order', 'proceed',
-    'login', 'sign in', 'signin', 'register', 'create account', 'start', 'begin'
+    'login', 'sign in', 'signin', 'register', 'create account', 'start', 'begin',
+    'add to cart', 'add to bag', 'cart', 'bid', 'checkout now', 'complete order',
+    'apply', 'accept', 'agree', 'proceed to shipping', 'place order now',
+    'availability', 'select date', 'check prices', 'view rates', 'compare',
+    'finalize', 'complete', 'finish', 'help', 'get help', 'contact us', 'Customer Service', 'Support', 'search'
   ];
 
   for (const word of primaryActions) {
-    if (combined.includes(word)) score += 12;
+    if (combined.includes(word)) score += 18;
   }
 
   // Generic actions often create false positives on ecommerce pages.
-  const weakActions = ['search', 'go', 'filter', 'sort'];
+  const weakActions = ['go', 'filter', 'sort'];
   for (const word of weakActions) {
     if (combined.includes(word)) score += 2;
   }
@@ -224,17 +246,36 @@ function calculateScore(element) {
     if (combined.includes(word)) score -= 25;
   }
 
-  // Amazon/common checkout patterns in id, class, name, and form metadata.
+  // Amazon/eBay/Booking patterns in id, class, name, and form metadata.
   const checkoutSignals = [
     'checkout',
     'proceedtoretailcheckout',
     'buy-box',
     'placeorder',
     'submitorder',
-    'a-button-primary'
+    'a-button-primary',
+    'add-to-cart',
+    'addtocart',
+    'buy now',
+    'bid now',
+    'placebid',
+    'book',
+    'reserve',
+    'booking',
+    'confirm-order',
+    'cartsubmit',
+    'purchase-button',
+    'checkout-btn',
+    'ebay',
+    'amazon',
+    'primary-action',
+    'Get Help',
+    'Contact Us',
+    'Customer Service',
+    'Support'
   ];
   for (const signal of checkoutSignals) {
-    if (attrs.includes(signal)) score += 28;
+    if (attrs.includes(signal)) score += 35;
   }
 
   const href = (element.getAttribute('href') || '').toLowerCase();
@@ -269,8 +310,9 @@ function getTopCandidates(limit = 5) {
   
   scored.sort((a, b) => b.score - a.score);
   
-  // Return elements with score > 0, limited to 'limit'
-  return scored.filter(c => c.score > 0).slice(0, limit);
+  // Return elements with score >= 8 (high quality only) and limited to 'limit'
+  // This filters out random low-scoring buttons
+  return scored.filter(c => c.score >= 8).slice(0, limit);
 }
 
 function generateSelector(element) {
@@ -342,7 +384,7 @@ async function findPrimaryButton() {
   }
   
   // Step 2: Run heuristic scoring
-  const candidates = getTopCandidates(1);
+  const candidates = getTopCandidates(3);
   if (candidates.length > 0 && candidates[0].score > 0) {
     console.log("Heuristic found button with score:", candidates[0].score);
     return candidates[0].element;
@@ -352,105 +394,6 @@ async function findPrimaryButton() {
   return null;
 }
 
-// TEACH ME UI (Show top 5 candidates for user to select)
-
-function showTeachMeUI() {
-  const candidates = getTopCandidates(5);
-  
-  if (candidates.length === 0) {
-    showToast("No clickable elements found on this page.");
-    deactivateMode();
-    return;
-  }
-  
-  // Create teaching overlay
-  const teachingOverlay = document.createElement('div');
-  teachingOverlay.id = 'one-thing-teaching-overlay';
-  teachingOverlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 10000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
-  
-  const card = document.createElement('div');
-  card.style.cssText = `
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  `;
-  
-  card.innerHTML = `
-    <h2 style="margin: 0 0 8px 0; font-size: 20px;">Choose your primary action</h2>
-    <p style="margin: 0 0 20px 0; color: #666; font-size: 14px;">
-      We couldn't automatically detect what you want to do on this page. 
-      Click on the action you use most often.
-    </p>
-    <div id="one-thing-candidates-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
-    <button id="one-thing-teaching-cancel" style="
-      margin-top: 20px;
-      padding: 8px 16px;
-      background: #f0f0f0;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      width: 100%;
-      font-size: 14px;
-    ">Cancel</button>
-  `;
-  
-  teachingOverlay.appendChild(card);
-  document.body.appendChild(teachingOverlay);
-  
-  const candidatesList = document.getElementById('one-thing-candidates-list');
-  
-  candidates.forEach((candidate, index) => {
-    const btn = document.createElement('button');
-    btn.textContent = candidate.text || `Button ${index + 1}`;
-    btn.style.cssText = `
-      padding: 12px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      text-align: left;
-      transition: background 0.2s;
-    `;
-    btn.onmouseover = () => btn.style.background = '#0056b3';
-    btn.onmouseout = () => btn.style.background = '#007bff';
-    
-    btn.onclick = async () => {
-      // User selected this button
-      const selector = generateSelector(candidate.element);
-      await saveSelector(currentDomain, selector);
-      teachingOverlay.remove();
-      showToast(`Saved! "${candidate.text}" will now be your primary action on ${currentDomain}`);
-      // Reactivate with the newly saved button
-      await activateMode();
-    };
-    
-    candidatesList.appendChild(btn);
-  });
-  
-  const cancelBtn = document.getElementById('one-thing-teaching-cancel');
-  cancelBtn.onclick = () => {
-    teachingOverlay.remove();
-    deactivateMode();
-  };
-}
-
 // ACTIVATE MODE (Highlight in place, 25% bigger, centered in same location)
 
 async function activateMode() {
@@ -458,20 +401,18 @@ async function activateMode() {
     console.log("Mode already active");
     return { success: true };
   }
-  
-  const primaryButton = await findPrimaryButton();
-  
-  if (!primaryButton) {
-    console.log("No primary button found");
+
+  const candidates = getTopCandidates(4);
+  if (candidates.length === 0) {
+    console.log("No candidate buttons found");
     return { error: "no_primary_action" };
   }
-  
+
   // Store original state
-  currentPrimarySelector = generateSelector(primaryButton);
+  currentPrimarySelector = generateSelector(candidates[0].element);
   originalPageClone = document.body.cloneNode(true);
-  
-  // Get original position of the button
-  const originalRect = primaryButton.getBoundingClientRect();
+
+  currentButtonClones = [];
   
   // Create overlay that hides everything except the target area
   currentOverlay = document.createElement('div');
@@ -487,56 +428,69 @@ async function activateMode() {
     pointer-events: auto;
   `;
   
-  // Clone the button
-  currentButtonClone = primaryButton.cloneNode(true);
-  
-  // Make it 25% bigger
-  const originalWidth = originalRect.width;
-  const originalHeight = originalRect.height;
-  const newWidth = originalWidth * 1.25;
-  const newHeight = originalHeight * 1.25;
-  
-  // Use viewport coordinates so the clone stays aligned with the fixed overlay.
-  // Clamp to viewport bounds so it is always visible.
-  const unclampedLeft = originalRect.left - (newWidth - originalWidth) / 2;
-  const unclampedTop = originalRect.top - (newHeight - originalHeight) / 2;
-  const maxLeft = Math.max(8, window.innerWidth - newWidth - 8);
-  const maxTop = Math.max(8, window.innerHeight - newHeight - 8);
-  const leftPos = Math.min(Math.max(8, unclampedLeft), maxLeft);
-  const topPos = Math.min(Math.max(8, unclampedTop), maxTop);
-  
-  currentButtonClone.style.cssText = `
-    position: fixed;
-    left: ${leftPos}px;
-    top: ${topPos}px;
-    width: ${newWidth}px;
-    height: ${newHeight}px;
-    z-index: 10000;
-    cursor: pointer;
-    box-shadow: 0 0 0 4px #007bff, 0 0 0 8px rgba(0,123,255,0.3);
-    border-radius: 4px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  `;
-  
-  // Add click handler to exit mode after normal click
-  currentButtonClone.addEventListener('click', async (e) => {
-    // Allow the original click to happen on the real button
-    // But first, temporarily remove overlay so click goes through
-    if (currentOverlay && currentOverlay.parentNode) {
-      currentOverlay.style.pointerEvents = 'none';
+  // Clone and highlight the top candidates.
+  const clonePositions = [];
+  candidates.forEach((candidate, index) => {
+    const target = candidate.element;
+    const originalRect = target.getBoundingClientRect();
+
+    const clone = target.cloneNode(true);
+
+    const originalWidth = originalRect.width;
+    const originalHeight = originalRect.height;
+    const scale = 1.0;
+    const newWidth = originalWidth * scale;
+    const newHeight = originalHeight * scale;
+
+    // Convert viewport coords to document coords so highlights scroll with page
+    let leftPos = originalRect.left + window.scrollX;
+    let topPos = originalRect.top + window.scrollY;
+
+    // Check if this position overlaps with any previous clones
+    // If so, offset it to avoid jamming
+    const minDistance = 60; // minimum pixel distance between highlights
+    for (const prevPos of clonePositions) {
+      const distX = Math.abs(leftPos - prevPos.left);
+      const distY = Math.abs(topPos - prevPos.top);
+      
+      if (distX < minDistance && distY < minDistance) {
+        // Too close, offset this clone
+        topPos += minDistance + 10;
+      }
     }
-    
-    // Trigger the original button's click
-    primaryButton.click();
-    
-    // Exit mode after a tiny delay to let the page respond
-    setTimeout(() => {
-      deactivateMode();
-    }, 100);
+
+    clonePositions.push({ left: leftPos, top: topPos });
+
+    clone.style.cssText = `
+      position: absolute;
+      left: ${leftPos}px;
+      top: ${topPos}px;
+      width: ${newWidth}px;
+      height: ${newHeight}px;
+      z-index: ${10000 + index};
+      cursor: pointer;
+      box-shadow: 0 0 0 3px #22c55e, 0 0 0 7px rgba(34,197,94,0.35);
+      border-radius: 6px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    `;
+
+    clone.title = `Top action ${index + 1} (score ${candidate.score})`;
+
+    clone.addEventListener('click', () => {
+      target.click();
+      setTimeout(() => {
+        deactivateMode();
+      }, 100);
+    });
+
+    currentButtonClones.push(clone);
   });
+
+  currentButtonClone = currentButtonClones[0] || null;
   
   // Create exit button
   currentExitButton = document.createElement('button');
@@ -564,7 +518,7 @@ async function activateMode() {
   
   // Assemble everything
   document.body.appendChild(currentOverlay);
-  document.body.appendChild(currentButtonClone);
+  currentButtonClones.forEach(clone => document.body.appendChild(clone));
   document.body.appendChild(currentExitButton);
   
   isActive = true;
@@ -572,7 +526,7 @@ async function activateMode() {
   // Notify background script
   chrome.runtime.sendMessage({ type: "modeActivated" }).catch(e => console.log("Background not ready"));
   
-  showToast("One Thing Mode active. Click the button to complete your task.");
+  showToast(`One Thing Mode active. Showing top ${currentButtonClones.length} actions.`);
   
   return { success: true };
 }
@@ -587,10 +541,14 @@ function deactivateMode() {
   // Remove all injected elements
   if (currentOverlay && currentOverlay.parentNode) currentOverlay.remove();
   if (currentButtonClone && currentButtonClone.parentNode) currentButtonClone.remove();
+  for (const clone of currentButtonClones) {
+    if (clone && clone.parentNode) clone.remove();
+  }
   if (currentExitButton && currentExitButton.parentNode) currentExitButton.remove();
   
   currentOverlay = null;
   currentButtonClone = null;
+  currentButtonClones = [];
   currentExitButton = null;
   originalPageClone = null;
   isActive = false;
