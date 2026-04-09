@@ -52,6 +52,27 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "popupActivate") {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      const tab = tabs && tabs[0];
+
+      if (!tab || !tab.id) {
+        sendResponse({ success: false, error: "no_active_tab" });
+        return;
+      }
+
+      try {
+        await handleActivation(tab);
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error("Popup activation failed:", error);
+        sendResponse({ success: false, error: "activation_failed" });
+      }
+    });
+
+    return true;
+  }
+
   if (message.type === "modeActivated" && sender.tab?.id) {
     // Content script successfully activated mode on this tab
     activeTabs.set(sender.tab.id, true);
