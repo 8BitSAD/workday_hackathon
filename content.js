@@ -155,8 +155,10 @@ function isElementInteractable(element) {
   //This function checks if an element is interactable or not by checking if it is hidden or visible
 }
 
-function buildElementSignals(element) {
-  const textParts = [
+function buildElementSignals(element) //This collects useful text and metadata from an element so the scorer can judge better
+ {
+  const textParts =  // Collects the text parts of metadata that might indicate the purpose of the element.
+  [
     element.innerText,
     element.textContent,
     element.value,
@@ -165,7 +167,8 @@ function buildElementSignals(element) {
     element.getAttribute('alt')
   ].filter(Boolean);
 
-  const attrParts = [
+  const attrParts = //collects the attribute parts of metadata 
+  [
     element.id,
     element.className,
     element.getAttribute('name'),
@@ -187,7 +190,8 @@ function buildElementSignals(element) {
   };
 }
 
-function calculateScore(element) {
+function calculateScore(element) 
+{
   if (!isElementInteractable(element)) return Number.NEGATIVE_INFINITY;
 
   let score = 0;
