@@ -2,9 +2,7 @@
 // One Thing Mode - Injects into every page
 // Handles DOM manipulation, button detection, overlay UI, and storage
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 let isActive = false;
 let originalPageClone = null;
@@ -16,9 +14,7 @@ let currentPrimarySelector = null;
 let activeToast = null;
 let observer = null; // MutationObserver for SPA navigation
 
-// ============================================================================
 // UTILITY FUNCTIONS
-// ============================================================================
 
 function showToast(message, duration = 3000) {
   // Remove existing toast if present
@@ -96,9 +92,7 @@ function getDomainFromUrl(url) {
   }
 }
 
-// ============================================================================
 // BUTTON DETECTION & SCORING
-// ============================================================================
 
 function getClickableElements() {
   const selector = [
@@ -303,9 +297,7 @@ function generateSelector(element) {
   return element.tagName.toLowerCase();
 }
 
-// ============================================================================
 // STORAGE (Domain-level mappings)
-// ============================================================================
 
 async function loadSavedSelector(domain) {
   return new Promise((resolve) => {
@@ -334,9 +326,7 @@ async function saveSelector(domain, selector) {
   });
 }
 
-// ============================================================================
 // FIND PRIMARY BUTTON (Saved selector + fallback)
-// ============================================================================
 
 async function findPrimaryButton() {
   // Step 1: Check saved mapping for this domain
@@ -362,9 +352,7 @@ async function findPrimaryButton() {
   return null;
 }
 
-// ============================================================================
 // TEACH ME UI (Show top 5 candidates for user to select)
-// ============================================================================
 
 function showTeachMeUI() {
   const candidates = getTopCandidates(5);
@@ -463,9 +451,7 @@ function showTeachMeUI() {
   };
 }
 
-// ============================================================================
 // ACTIVATE MODE (Highlight in place, 25% bigger, centered in same location)
-// ============================================================================
 
 async function activateMode() {
   if (isActive) {
@@ -591,9 +577,7 @@ async function activateMode() {
   return { success: true };
 }
 
-// ============================================================================
 // DEACTIVATE MODE
-// ============================================================================
 
 function deactivateMode() {
   if (!isActive) {
@@ -619,9 +603,7 @@ function deactivateMode() {
   return { success: true };
 }
 
-// ============================================================================
 // MESSAGE HANDLERS (for background.js communication)
-// ============================================================================
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Content script received message:", message);
@@ -657,9 +639,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-// ============================================================================
 // SPA NAVIGATION HANDLER (Detect URL changes)
-// ============================================================================
 
 let lastUrl = location.href;
 
