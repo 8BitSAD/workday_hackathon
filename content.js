@@ -4,27 +4,28 @@
 
 // STATE MANAGEMENT
 
-let isActive = false;
-let originalPageClone = null;
-let currentOverlay = null;
-let currentButtonClone = null;
-let currentButtonClones = [];
-let currentExitButton = null;
-let currentDomain = window.location.hostname;
-let currentPrimarySelector = null;
-let activeToast = null;
+let isActive = false;  //if scope is running on this page
+let originalPageClone = null; // a clone of the page
+let currentOverlay = null; // the overlay gets added when mode is activated
+let currentButtonClone = null; // stores the highlighted button clone
+let currentButtonClones = []; //multiple clones
+let currentExitButton = null; // Exit button element
+let currentDomain = window.location.hostname;  //current domain for storage mapping
+let currentPrimarySelector = null; // stores the css selector of the chosen element
+let activeToast = null;  //toast message element tracked to prevent duplicates
 let observer = null; // MutationObserver for SPA navigation
 
 // UTILITY FUNCTIONS
 
-function showToast(message, duration = 3000) {
+function showToast(message, duration = 3000)  //simple toast notification at bottom right
+{
   // Remove existing toast if present
   if (activeToast) {
     activeToast.remove();
   }
   
-  const toast = document.createElement('div');
-  toast.textContent = message;
+  const toast = document.createElement('div');  // Create a new toast element
+  toast.textContent = message; // Set the message text
   toast.style.cssText = `
     position: fixed;
     bottom: 20px;
@@ -43,7 +44,7 @@ function showToast(message, duration = 3000) {
   
   // Add animation keyframes if not already present
   if (!document.querySelector('#one-thing-toast-styles')) {
-    const style = document.createElement('style');
+    const style = document.createElement('style'); // Create a style element for toast animations
     style.id = 'one-thing-toast-styles';
     style.textContent = `
       @keyframes slideIn {
@@ -70,13 +71,16 @@ function showToast(message, duration = 3000) {
     document.head.appendChild(style);
   }
   
-  document.body.appendChild(toast);
-  activeToast = toast;
+  document.body.appendChild(toast); // Add the toast to the page
+  activeToast = toast; // Track the active toast
   
-  setTimeout(() => {
-    if (activeToast === toast) {
+  setTimeout(() => // Remove the toast after the specified duration
+    {
+    if (activeToast === toast) 
+    {
       toast.style.animation = 'slideOut 0.3s ease';
-      setTimeout(() => {
+      setTimeout(() => 
+      {
         if (toast.parentNode) toast.remove();
         if (activeToast === toast) activeToast = null;
       }, 300);
@@ -84,7 +88,8 @@ function showToast(message, duration = 3000) {
   }, duration);
 }
 
-function getDomainFromUrl(url) {
+function getDomainFromUrl(url) //Takes a url and extracts the domain, removes www.
+{
   try {
     const hostname = new URL(url).hostname;
     return hostname.replace(/^www\./, '');
@@ -95,8 +100,11 @@ function getDomainFromUrl(url) {
 
 // BUTTON DETECTION & SCORING
 
-function getClickableElements() {
-  const selector = [
+function getClickableElements()  //finds the elements on a page that your extension considers important.
+{
+    // This selector targets a wide range of interactive elements
+  const selector =
+  [
     'button',
     'a[href]',
     '[role="button"]',
@@ -117,18 +125,19 @@ function getClickableElements() {
     '.a-button-primary'
   ].join(', ');
 
-  const seen = new Set();
-  const result = [];
+  const seen = new Set(); // to avoid duplicates from multiple selectors
+  const result = []; // final list of unique interactable elements
 
-  for (const element of document.querySelectorAll(selector)) {
-    if (seen.has(element)) continue;
-    seen.add(element);
+  for (const element of document.querySelectorAll(selector))  //
+     {
+    if (seen.has(element)) continue; // skip if we've already processed this element
+    seen.add(element); // mark this element as seen
 
-    if (!isElementInteractable(element)) continue;
-    result.push(element);
+    if (!isElementInteractable(element)) continue;  // skip if element is not visible or interactable
+    result.push(element);  // add to results if it passed all checks
   }
 
-  return result;
+  return result; // return the list of unique, interactable elements
 }
 
 function isElementInteractable(element) {
@@ -142,6 +151,8 @@ function isElementInteractable(element) {
   if (rect.width < 16 || rect.height < 16) return false;
 
   return true;
+
+  //This function checks if an element is interactable or not by checking if it is hidden or visible
 }
 
 function buildElementSignals(element) {
