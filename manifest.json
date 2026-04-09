@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "One Thing Mode",
+  "name": "Scope",
   "version": "0.1.0",
   "description": "Reduces webpages to a single primary action - designed for people with ADHD, brain fog, and executive dysfunction",
   "permissions": [
@@ -29,18 +29,18 @@
         "default": "Ctrl+Shift+O",
         "mac": "Command+Shift+O"
       },
-      "description": "Activate One Thing Mode on current page"
+      "description": "Activate Scope on current page"
     },
     "exit-one-thing": {
       "suggested_key": {
         "default": "Ctrl+Shift+X",
         "mac": "Command+Shift+X"
       },
-      "description": "Exit One Thing Mode"
+      "description": "Exit Scope"
     }
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "One Thing Mode"
+    "default_title": "Scope"
   }
 }
